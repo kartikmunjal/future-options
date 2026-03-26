@@ -1,0 +1,90 @@
+# CME Futures Universe — Carry (Roll Yield) Strategy
+#
+# Carry computation methods:
+#   basis        : carry = log(futures_price / spot_price) × 12   [annualised]
+#   yield_spread : carry = yield_long − yield_short                [% pa → decimal]
+#   cost_of_carry: carry = −(DTB3/100)   (gold: always slight contango vs risk-free)
+#
+# Data sources (FREE, no API key required):
+#   FRED     → https://fred.stlouisfed.org/graph/fredgraph.csv?id=<SERIES>
+#   yfinance → continuous front-month futures (e.g. CL=F) and ETFs
+#
+# References: Erb & Harvey (2006); Koijen, Moskowitz, Pedersen & Vrugt (2018)
+
+futures:
+
+  # ── Energy (NYMEX) ──────────────────────────────────────────────────────────
+  # FRED spot series are daily, same units as yfinance continuous futures.
+  CL:
+    name: "Crude Oil WTI"
+    sector: energy
+    continuous_ticker: "CL=F"       # $/bbl
+    carry_method: basis
+    spot_source: fred
+    spot_series: DCOILWTICO          # WTI crude spot, $/bbl, daily
+
+  NG:
+    name: "Natural Gas"
+    sector: energy
+    continuous_ticker: "NG=F"       # $/MMBTU
+    carry_method: basis
+    spot_source: fred
+    spot_series: DHHNGSP             # Henry Hub spot, $/MMBTU, daily
+
+  HO:
+    name: "Heating Oil (ULSD)"
+    sector: energy
+    continuous_ticker: "HO=F"       # $/gallon
+    carry_method: basis
+    spot_source: fred
+    spot_series: DHOILNYH            # NY Harbor heating oil, $/gallon, daily
+
+  # ── Metals ──────────────────────────────────────────────────────────────────
+  # Gold: uses cost-of-carry model. Gold has near-zero convenience yield,
+  # so futures trade in contango ≈ risk-free rate. carry ≈ −DTB3.
+  GC:
+    name: "Gold"
+    sector: metals
+    continuous_ticker: "GC=F"
+    carry_method: cost_of_carry      # carry = −DTB3/100 (approx gold contango)
+    yield_short_series: DTB3         # 3-month T-bill (FRED, daily, %)
+
+  # Copper: FRED monthly LME cash price in $/metric ton.
+  # HG=F is quoted in $/lb. 1 MT = 2204.6 lbs → multiplier = 1/2204.6
+  HG:
+    name: "Copper"
+    sector: metals
+    continuous_ticker: "HG=F"       # $/lb
+    carry_method: basis
+    spot_source: fred
+    spot_series: PCOPPUSDM           # LME copper cash, $/metric ton, monthly
+    spot_multiplier: 0.000453592     # $/MT ÷ 2204.6 = $/lb
+
+  # ── Interest Rates (CBOT) ────────────────────────────────────────────────────
+  # Yield-curve carry: the term premium earned by holding a longer-dated bond
+  # funded at the short rate. All FRED series in % per year → divide by 100.
+  ZN:
+    name: "10-Year T-Note"
+    sector: rates
+    continuous_ticker: "ZN=F"
+    carry_method: yield_spread
+    yield_long_series: DGS10         # 10-yr constant maturity yield (FRED, %)
+    yield_short_series: DTB3         # 3-month T-bill (FRED, %)
+
+  ZB:
+    name: "30-Year T-Bond"
+    sector: rates
+    continuous_ticker: "ZB=F"
+    carry_method: yield_spread
+    yield_long_series: DGS30         # 30-yr constant maturity yield (FRED, %)
+    yield_short_series: DTB3
+
+# ── Strategy parameters ────────────────────────────────────────────────────────
+strategy:
+  start_date: "2022-01-01"
+  end_date: "2026-03-31"
+  n_long: 3                   # long the top-N by carry
+  n_short: 3                  # short the bottom-N by carry
+  target_annual_vol: 0.15     # gross portfolio vol target (15%)
+  vol_lookback_days: 60       # rolling vol estimation window (trading days)
+  transaction_cost_bps: 1.0   # round-trip transaction cost per unit notional
