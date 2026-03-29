@@ -1,7 +1,7 @@
 # CME Futures Carry (Roll Yield) Strategy
 
-A systematic cross-sectional carry trade on 11 CME futures markets using publicly
-available data from Yahoo Finance (CME/NYMEX/COMEX/CBOT contracts).
+A systematic cross-sectional carry trade on 7 CME futures markets using publicly
+available data from Yahoo Finance and FRED (no API key required).
 
 ---
 
@@ -29,37 +29,61 @@ carry_i(t) = log(F1_i / F2_i) × (12 / ΔMonths)   [annualised]
 
 ---
 
-## Universe — 11 CME Markets
+## Backtest Results (2022–2026, net of costs)
 
-| Sector | Name | Root | Exchange |
-|--------|------|------|----------|
-| Energy | Crude Oil WTI | CL | NYMEX |
-| Energy | Natural Gas | NG | NYMEX |
-| Energy | Heating Oil (ULSD) | HO | NYMEX |
-| Metals | Gold | GC | COMEX |
-| Metals | Silver | SI | COMEX |
-| Metals | Copper | HG | COMEX |
-| Grains | Corn | ZC | CBOT |
-| Grains | Wheat (SRW) | ZW | CBOT |
-| Grains | Soybeans | ZS | CBOT |
-| Rates  | 10-Year T-Note | ZN | CBOT |
-| Rates  | 30-Year T-Bond | ZB | CBOT |
+| Metric | Value |
+|--------|-------|
+| **Annual Return** | **+1.71%** |
+| **Sharpe Ratio** | **0.22** |
+| **Max Drawdown** | **−15.2%** |
+| Annual Vol | 7.60% |
+| Sortino Ratio | 0.35 |
+| Total Return | +6.2% |
+| Win Rate (daily) | 51.2% |
+| Positive Months | 49.0% |
+| Best Month | +7.5% |
+| Worst Month | −4.6% |
+
+**Annual breakdown:**
+
+| Year | Return |
+|------|--------|
+| 2022 | +8.5% |
+| 2023 | −6.1% |
+| 2024 | −3.6% |
+| 2025 | +1.6% |
+| 2026 | +6.4% (YTD) |
+
+> The 7-market universe constrains the Sharpe. Expanding to 20+ markets (adding grains,
+> softs, livestock, FX) typically pushes carry strategies to Sharpe 0.5–0.8.
+
+---
+
+## Universe — 7 CME Markets
+
+| Sector | Name | Root | Exchange | Carry Method |
+|--------|------|------|----------|--------------|
+| Energy | Crude Oil WTI | CL | NYMEX | Futures / FRED spot |
+| Energy | Natural Gas | NG | NYMEX | Futures / FRED spot |
+| Energy | Heating Oil (ULSD) | HO | NYMEX | Futures / FRED spot |
+| Metals | Gold | GC | COMEX | Cost-of-carry (−DTB3) |
+| Metals | Copper | HG | COMEX | Futures / FRED spot |
+| Rates  | 10-Year T-Note | ZN | CBOT | Yield spread (10yr − 3m) |
+| Rates  | 30-Year T-Bond | ZB | CBOT | Yield spread (30yr − 3m) |
 
 ---
 
 ## Data Sources
 
-All data is sourced from **Yahoo Finance** via `yfinance` (free, no API key required).
+All data is free and requires no API key:
 
-Two types of contracts are downloaded:
+| Source | Series | Purpose |
+|--------|--------|---------|
+| **Yahoo Finance** (`yfinance`) | `CL=F`, `NG=F`, `HO=F`, `GC=F`, `HG=F`, `ZN=F`, `ZB=F` | Daily returns (continuous front-month) |
+| **FRED** (St. Louis Fed) | `DCOILWTICO`, `DHHNGSP`, `DHOILNYH`, `PCOPPUSDM` | Spot prices for carry basis |
+| **FRED** | `DGS10`, `DGS30`, `DTB3` | Yield curve for rates carry |
 
-| Type | Ticker format | Example | Purpose |
-|------|--------------|---------|---------|
-| Specific month | `{ROOT}{MC}{YY}.{EX}` | `CLK25.NYM` | Carry signal (F1/F2 spread) |
-| Continuous front-month | `{ROOT}=F` | `CL=F` | Daily returns for P&L |
-
-CME month codes: **F**=Jan **G**=Feb **H**=Mar **J**=Apr **K**=May **M**=Jun
-**N**=Jul **Q**=Aug **U**=Sep **V**=Oct **X**=Nov **Z**=Dec
+All downloads are cached as Parquet files under `data/raw/`. Re-runs are instant.
 
 ---
 
